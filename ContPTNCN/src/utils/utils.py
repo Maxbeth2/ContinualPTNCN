@@ -11,16 +11,16 @@ tf.random.set_seed(seed=seed)
 np.random.seed(seed)
 
 def init_weights(init_type, shape, seed, stddev=1):
-	if init_type is "glorot_normal":
+	if init_type == "glorot_normal":
 		initializer = tf.compat.v1.keras.initializers.glorot_normal()
 		params = initializer(shape) #, seed=seed )
-	elif init_type is "glorot_uniform":
+	elif init_type == "glorot_uniform":
 		initializer = tf.compat.v1.keras.initializers.glorot_uniform()
 		params = initializer(shape) #, seed=seed )
-	elif init_type is "orthogonal":
+	elif init_type == "orthogonal":
 		initializer = tf.compat.v1.keras.initializers.orthogonal()
 		params = initializer(shape)
-	elif init_type is "truncated_normal":
+	elif init_type == "truncated_normal":
 		params = tf.random.truncated_normal(shape, stddev=stddev, seed=seed)
 	else:
 		params = tf.random.normal(shape, stddev=stddev, seed=seed)
@@ -41,9 +41,6 @@ def gelu1(x): # quick access function for Gelu
 	#return x * 0.5 * (1.0 + tf.math.erf(x / tf.math.sqrt(2.0)))
 
 def softmax(x):
-	"""
-		Softmax function with overflow control built in directly
-	"""
     max_x = tf.expand_dims( tf.reduce_max(x, axis=1), axis=1)
     exp_x = tf.exp(tf.subtract(x, max_x))
     return exp_x / tf.expand_dims( tf.reduce_sum(exp_x, axis=1), axis=1)
@@ -99,10 +96,10 @@ def clip_by_frobenius(tensor):
 	norm2 = tf.norm(tensor, ord='euclidean')
 	if norm2 > 1.0:
 		tensor = tensor / (norm2 + 1e-6)
-	# else do nothing, norm is fine and within the Gaussian ball of radius 1.0
+	# else do nothing, norm == fine and within the Gaussian ball of radius 1.0
 	return tensor
 
-def merge_two_dicts(x, y): #This code is required for python 2.7 upto 3.4
+def merge_two_dicts(x, y): #This code == required for python 2.7 upto 3.4
 	z = x.copy()   # start with x's keys and values
 	z.update(y)    # modifies z with y's keys and values & returns None
 	#theta = {**x, **y} For python 3 users
@@ -119,7 +116,7 @@ def seq_to_tokens(idx_seq, vocab, mb_idx=0, mask=None):
 	tok_seq = ""
 	for i in range(0, idx_seq.shape[0]):
 		idx = idx_seq[i][mb_idx].numpy()
-		if mask is not None:
+		if mask != None:
 			if mask[i,mb_idx] > 0:
 				tok_seq += vocab.idx2token(idx) + " "
 			#else:

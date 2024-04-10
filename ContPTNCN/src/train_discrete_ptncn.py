@@ -44,8 +44,8 @@ def theta_norms_to_str(model, is_header=False):
     str = ""
     theta = model.collect_params()
     for param_name in theta:
-        if is_header is False:
-            str += "{0}".format(tf.norm(theta[param_name],ord="euclidean"))
+        if is_header == False:
+            str += "{0}".format(tf.norm(theta[param_name], ord="euclidean"))
         else:
             str += "{0}".format(param_name)
         str += ","
@@ -97,7 +97,7 @@ def fast_log_loss(probs, y_ind):
 
 def eval_model(model, data_set, debug_step_print=False):
     """
-         Strictly evaluates the model/architecture on a fixed-point data sample
+        Strictly evaluates the model/architecture on a fixed-point data sample
     """
     cost = 0.0
     acc = 0.0
@@ -110,16 +110,24 @@ def eval_model(model, data_set, debug_step_print=False):
         mk = tf.cast(tf.greater_equal(x_seq, 0), dtype=tf.float32) # create mask to block off negative indices
         for t in range(x_seq.shape[1]): # step through sequence
             i_t = np.expand_dims(x_seq[:,t],axis=1) # get token indicies at time t
+            # print(i_t)
+            # print("--")
+            # a = input("Say something")
             m_t = tf.expand_dims(mk[:,t],axis=1)
-
+            # print(m_t)
+            # print("--")
+            # exit()
             x_t = tf.squeeze( tf.one_hot(i_t,depth=vocab.size) ) # convert to one-hot encoding for now...
+            for x in x_t:
+                print(x)
+            # exit()
             if i_t.shape[0] == 1:
                 x_t = tf.expand_dims(x_t, axis=0)
             x_logits, x_mu = model.forward(x_t, m_t, is_eval=True, beta=beta, alpha=alpha_e)
 
 
             if t >= t_prime:
-                if use_low_dim_eval is False:
+                if use_low_dim_eval == False:
                     log_seq_p += fast_log_loss(x_mu, i_t)
                     x_pred_t = tf.expand_dims(tf.cast(tf.argmax(x_mu,1),dtype=tf.int32),axis=1)
                     comp = tf.cast(tf.equal(x_pred_t, i_t),dtype=tf.float32) * m_t
@@ -127,11 +135,11 @@ def eval_model(model, data_set, debug_step_print=False):
                 else:
                     log_seq_p += -tf.reduce_sum( tf.math.log(x_mu) * x_t )
 
-                if normalize_by_num_seq is False:
+                if normalize_by_num_seq == False:
                     N_tok += tf.reduce_sum(m_t)
         model.clear_var_history() # clears out statistical "gunk" inside of model
         cost += log_seq_p
-        if normalize_by_num_seq is True:
+        if normalize_by_num_seq == True:
             N_tok += x_seq.shape[0]
 
         num_seq_processed += x_seq.shape[0]
@@ -142,7 +150,7 @@ def eval_model(model, data_set, debug_step_print=False):
     cost = cost / N_tok
     acc = acc / N_tok
     mse = mse / N_tok
-    if calc_bpc is True:
+    if calc_bpc == True:
         ppl = cost * (1.0 / np.log(2.0))
     else:
         ppl = tf.exp(cost)
@@ -154,7 +162,7 @@ def eval_model_timed(model, train_data, dev_data, subtrain_data=None):
          Wrapped evaluation function that includes wall-clock timing.
     """
     start_v = time.process_time()
-    if subtrain_data is not None:
+    if subtrain_data != None:
         cost_i, acc_i, ppl_i, mse_i = eval_model(model, subtrain_data)
     else:
         cost_i, acc_i, ppl_i, mse_i = eval_model(model, train_data)
@@ -171,7 +179,7 @@ train_fname = "../data/ptb_char/trainX.txt"
 subtrain_fname = "../data/ptb_char/subX.txt"
 dev_fname = "../data/ptb_char/validX.txt"
 vocab = "../data/ptb_char/vocab.txt"
-out_dir = "/data_reitter/ago109/data/ptb_char/modelA/"
+out_dir = "../output/"#"/data_reitter/ago109/data/ptb_char/modelA/"
 calc_bpc = True
 use_low_dim_eval = False
 accum_updates = False
@@ -213,13 +221,13 @@ moment_v = tf.Variable( momentum )
 alpha_v  = tf.Variable( alpha )
 
 # prop up the update rule (or "optimizer" in TF lingo)
-if opt_type is "nag":
+if opt_type == "nag":
     optimizer = tf.compat.v1.train.MomentumOptimizer(learning_rate=alpha_v,momentum=moment_v,use_nesterov=True)
-elif opt_type is "momentum":
+elif opt_type == "momentum":
     optimizer = tf.compat.v1.train.MomentumOptimizer(learning_rate=alpha_v,momentum=moment_v,use_nesterov=False)
-elif opt_type is "adam":
+elif opt_type == "adam":
     optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=alpha_v)
-elif opt_type is "rmsprop":
+elif opt_type == "rmsprop":
     optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate=alpha_v)
 else:
     optimizer = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=alpha_v)
@@ -233,7 +241,7 @@ train_data = DataLoader(train_fname, mb)
 subtrain_data = DataLoader(subtrain_fname, v_mb)
 dev_data = DataLoader(dev_fname, v_mb)
 
-if load_model is True or eval_only is True:
+if load_model == True or eval_only == True:
     print(" >> Loading pre-trained model: {0}{1}".format(out_dir,model_fname))
     fd = open("{0}{1}".format(out_dir, model_fname), 'rb')
     model = pickle.load( fd )
@@ -247,8 +255,7 @@ cost_i, acc_i, vcost_i, vacc_i, eval_time_v, ppl_i, vppl_i, mse_i, vmse_i = eval
 print(" -1: Tr.L = {0} Tr.Acc = {1} V.L = {2} V.Acc = {3} Tr.MSE = {4} V.MSE = {5} in {6} s".format(cost_i, acc_i, vcost_i, vacc_i, mse_i, vmse_i, eval_time_v))
 vcost_im1 = vcost_i
 
-if eval_only is False:
-
+if eval_only == False:
     log = open("{0}{1}".format(out_dir,"perf.txt"),"w")
     log.write("Iter, Loss, PPL, Acc, VLoss, VPPL, VAcc\n")
     log.flush()
@@ -286,7 +293,7 @@ if eval_only is False:
                     for p in range(len(delta)):
                         delta[p] = delta[p] * (1.0/(N_mb * 1.0))
 
-                    if accum_updates is False:
+                    if accum_updates == False:
                         optimizer.apply_gradients(zip(delta, model.param_var))
 
                         if w_decay > 0.0:
@@ -308,7 +315,7 @@ if eval_only is False:
 
                 N_tok += tf.reduce_sum(m_t)
 
-            if accum_updates is True:
+            if accum_updates == True:
                 optimizer.apply_gradients(zip(delta_accum, model.param_var))
 
                 if param_radius > 0.0:

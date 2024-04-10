@@ -100,29 +100,29 @@ class PTNCN:
 
         # initialize the activation function
         self.act_fx = None
-        if self.act_fun is "gelu":
+        if self.act_fun == "gelu":
             self.act_fx = gelu1
-        elif self.act_fun is "relu6":
+        elif self.act_fun == "relu6":
             self.act_fx = tf.nn.relu6
-        elif self.act_fun is "relu":
+        elif self.act_fun == "relu":
             self.act_fx = tf.nn.relu
-        elif self.act_fun is "sigmoid":
+        elif self.act_fun == "sigmoid":
             self.act_fx = tf.nn.sigmoid
-        elif self.act_fun is "sign":
+        elif self.act_fun == "sign":
             self.act_fx = tf.sign
-        elif self.act_fun is "tanh":
+        elif self.act_fun == "tanh":
             self.act_fx = tf.nn.tanh
-        elif self.act_fun is "ltanh":
+        elif self.act_fun == "ltanh":
             self.act_fx = ltanh
         else:
             self.act_fx = gte
 
         self.out_fx = tf.identity
-        if out_fun is "softmax":
+        if out_fun == "softmax":
             self.out_fx = softmax
-        elif out_fun is "tanh":
+        elif out_fun == "tanh":
             self.out_fx = tf.nn.tanh
-        elif out_fun is "sigmoid":
+        elif out_fun == "sigmoid":
             self.out_fx = tf.nn.sigmoid
 
     def act_dx(self, h, z):
@@ -180,16 +180,16 @@ class PTNCN:
         x_mu = None
         x_ = tf.cast(x, dtype=tf.float32)
 
-        if self.zf1 is not None:
+        if self.zf1 != None:
             self.zf0_tm1 = self.zf0
-            if self.x_tm1 is not None:
+            if self.x_tm1 != None:
                 self.zf0_tm1 = self.x_tm1
             self.zf1_tm1 = self.y1
             self.zf2_tm1 = self.y2
             self.e1v_tm1 = self.e1v
             self.e2v_tm1 = self.e2v
         else:
-            if self.z_pad is None:
+            if self.z_pad == None:
                 self.z_pad = tf.zeros([x.shape[0], self.hid_dim]) #tf.tile(self.zero_pad, [x.shape[0],1])
                 self.x_pad = tf.zeros([x.shape[0], self.in_dim])
             else:
@@ -217,7 +217,7 @@ class PTNCN:
         else:
             self.z2 = tf.matmul(self.zf2_tm1, self.V2)
         #self.z2 = tf.add(tf.matmul(self.zf1_tm1, self.M2), tf.matmul(self.zf2_tm1, self.V2))
-        if self.standardize is True:
+        if self.standardize == True:
             self.z2 = standardize( self.z2 )
         self.zf2 = self.act_fx(self.z2)
         z1_mu = tf.matmul(self.zf2, self.W2)
@@ -226,15 +226,21 @@ class PTNCN:
             self.z1 = tf.add(tf.add(tf.matmul(self.zf0_tm1, self.M1), tf.matmul(self.zf2_tm1, self.U1)), tf.matmul(self.zf1_tm1, self.V1))
         else:
             self.z1 = tf.add(tf.matmul(self.zf0_tm1, self.M1), tf.matmul(self.zf1_tm1, self.V1))
-        if self.standardize is True:
+        if self.standardize == True:
             self.z1 = standardize( self.z1 )
         self.zf1 = self.act_fx(self.z1)
         x_logits = tf.matmul(self.zf1, self.W1)
         x_mu = self.out_fx( x_logits ) #tf.nn.sigmoid( x_logits )
 
+
+
+
+
         # compute local errors and state perturbations
         self.e1 = tf.subtract(z1_mu, self.zf1) * m
         self.ex = tf.subtract(x_mu, self.zf0) * m
+
+        
         d2 = tf.matmul(self.e1, self.E2)
         d1 = tf.subtract(tf.matmul(self.ex, self.E1), self.e1 * alpha)
         if self.L1 > 0.0:# inject the weak lateral sparsity prior here
@@ -246,6 +252,8 @@ class PTNCN:
         # compute temporal weight corrections
         self.e2v = tf.subtract(self.zf2, self.y2) * m
         self.e1v = tf.subtract(self.zf1, self.y1) * m
+
+
 
         '''
         # no need to waste the multiplications to mask these out as only the error neurons drive weight updates in this case
@@ -266,10 +274,10 @@ class PTNCN:
         dW = tf.matmul(self.zf1, self.ex, transpose_a=True)
         if update_radius > 0.0:
             dW = tf.clip_by_norm(dW, update_radius)
-        delta_list.append(dW )
+        delta_list.append(dW)
 
         # E1
-        if self.use_temporal_error_rule is True:
+        if self.use_temporal_error_rule == True:
             dW = None
             dW = tf.matmul(self.ex, tf.subtract(self.e1v, self.e1v_tm1), transpose_a=True) * -gamma
         else:
@@ -288,7 +296,7 @@ class PTNCN:
         delta_list.append(dW )
 
         # E2
-        if self.use_temporal_error_rule is True:
+        if self.use_temporal_error_rule == True:
             dW = None
             dW = tf.matmul(self.e1, tf.subtract(self.e2v, self.e2v_tm1), transpose_a=True) * -gamma
         else:

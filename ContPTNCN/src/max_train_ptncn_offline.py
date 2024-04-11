@@ -24,7 +24,7 @@ tf.random.set_seed(seed=seed)
 np.random.seed(seed)
 
 # train_fname = "../data/ptb_char/trainX.txt"
-train_fname = "../data/recs/recording.npy"
+train_fname = "../data/recs/recordingA.npy"
 out_dir = "../output/"#"/data_reitter/ago109/data/ptb_char/modelA/"
 accum_updates = False
 out_fun = "identity"
@@ -131,14 +131,15 @@ if __name__ == '__main__':
     listener.start()
     
     while True:
-        if irec.poll():
-            idat = irec.recv()
-            idat -= 97
-            idat /= (257 - 97)
-            # print(idat)
-            model.set_confidence(confidence)
-            x_t = tf.expand_dims([idat], axis=0)
-            # x_t = tf.expand_dims([data[t]], axis=0)
+        for t in range(len(datat)):
+            # if irec.poll():
+            #     idat = irec.recv()
+            #     idat -= 97
+            #     idat /= (257 - 97)
+                # print(idat)
+                # model.set_confidence(confidence)
+                # x_t = tf.expand_dims([idat], axis=0)
+            x_t = tf.expand_dims([data[t]], axis=0)
             x_logits, x_mu = model.forward(x_t, is_eval=False, beta=beta, alpha=alpha_e)
             preds.append(x_mu)
             # print(x_mu.numpy()[0])
@@ -152,11 +153,14 @@ if __name__ == '__main__':
                 delta = model.compute_updates(gamma=gamma, update_radius=update_radius)
                 N_mb = x_t.shape[0]
                 for p in range(len(delta)):
+                    print(delta[p])
                     delta[p] = delta[p] * (1.0/(N_mb * 1.0))
+                    exit()
 
                 if accum_updates == False:
                     optimizer.apply_gradients(zip(delta, model.param_var))
         t+=1
+        model.clear_var_history()
 
 
 

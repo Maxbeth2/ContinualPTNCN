@@ -1,17 +1,159 @@
-import tensorflow as tf
-import sys
-from utils import gelu1, softmax, init_weights, gte, ltanh, d_relu6, standardize
-import numpy as np
+from layers import *
 
-seed = 1234
-tf.random.set_seed(seed=seed)
-np.random.seed(seed)
+opt_type = "nag" #"sgd" # "nag"
+alpha = 0.075
+momentum = 0.95 # 0.99
+update_radius = 1.0
+param_radius = -30 #50 #-25.0 #-1.0
+w_decay = -0.0001
+hid_dim = 25 #250
+wght_sd = 0.05
+err_wght_sd = 0.05
+beta = 0.1
+gamma = 1
+act_fun = "tanh"
+alpha_e = 0.001 # set according to IEEE paper
 
-'''
-    Implementation of a 2-latent variable layer Parallel Temporal Neural Coding Network (P-TNCN), Ororbia and Mali 2019 IEEE TNNLS
 
-    @author: Ankur Mali
-'''
+###########################################################################################################
+# initialize the program
+###########################################################################################################
+moment_v = tf.Variable( momentum )
+alpha_v  = tf.Variable( alpha )
+
+# prop up the update rule (or "optimizer" in TF lingo)
+if opt_type == "nag":
+    optimizer = tf.compat.v1.train.MomentumOptimizer(learning_rate=alpha_v,momentum=moment_v,use_nesterov=True)
+elif opt_type == "momentum":
+    optimizer = tf.compat.v1.train.MomentumOptimizer(learning_rate=alpha_v,momentum=moment_v,use_nesterov=False)
+elif opt_type == "adam":
+    optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=alpha_v)
+elif opt_type == "rmsprop":
+    optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate=alpha_v)
+else:
+    optimizer = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=alpha_v)
+
+
+class PTNCN_MAX:
+    '''0th layer = top layer\n
+    -1th layer = input layer\n
+    self.layers[n]'''
+    def __init__(self, lrs):
+        self.in_dim = lrs[-1]
+        self.layers = []
+        self.layers.append(ZT(sdim=lrs[0]))
+        for lr in range(1, len(lrs)-1):
+            self.layers.append(ZZ(sdim=lrs[lr]))
+        self.layers.append(ZB(sdim=lrs[-1]))
+
+        for lr in range(1, len(self.layers)):
+            self.layers[lr].set_parent(self.layers[lr-1])
+
+        for lr in range(0, len(self.layers)-1):
+            self.layers[lr].set_child(self.layers[lr+1])
+
+        self.param_var = []
+        lr = self.layers[0]
+        lr : ZT
+        self.param_var.append(lr.W)
+        self.param_var.append(lr.E)
+        self.param_var.append(lr.M)
+        self.param_var.append(lr.V)
+        for l in range(1, len(lrs)-1):
+            lr = self.layers[l]
+            self.param_var.append(lr.W)
+            self.param_var.append(lr.E)
+            self.param_var.append(lr.M)
+            self.param_var.append(lr.V)
+            self.param_var.append(lr.U)
+            
+
+    def set_input(self, inp):
+        lr = self.layers[-1]
+        lr: Z
+        lr.set_val(inp)
+    
+    def fwd(self):
+        for lr in self.layers:
+            lr: Z
+            lr.pred()
+
+    def calc_errs(self):
+        for lr in self.layers:
+            lr: Z
+            lr.calc_err()
+
+    def corr(self):
+        for lr in self.layers:
+            lr: Z
+            lr.corr()
+
+    def update(self):
+        delta = []
+        for lr in self.layers:
+            lr: Z
+            for d in lr.update():
+                delta.append(d)
+            # print("PARAMS:\n")
+            # print(lr.update())
+            # print("\n")
+        N_mb = self.in_dim
+        for p in range(len(delta)):
+            # print(delta[p])
+            delta[p] = delta[p] * (1.0/(N_mb * 1.0))
+
+        # if accum_updates == False:
+        optimizer.apply_gradients(zip(delta, self.param_var))
+        print("\n\n\n")
+        print("DELTA:")
+        print(delta)
+        print()
+        print("PARAM:")
+        print(self.param_var)
+        print()
+        exit()
+
+    def step(self, inp=tf.constant([[1.0, 1.3]])):
+        self.set_input(inp=inp)
+        self.fwd()
+        self.calc_errs()
+        self.corr()
+        self.update()
+        print()
+
+        
+
+ncn = PTNCN_MAX([10,10,2])
+ncn.step()
+ncn.step()
+ncn.step()
+exit()
+        
+
+
+
+
+ß
+
+def collect_params(self):
+    """
+        Routine for collecting all synaptic weight matrix/vectors from
+        transformer model in a named dictionary (for norm printing)
+    """
+    theta = dict()
+    theta["W1"] = self.W1
+    theta["W2"] = self.W2
+    theta["E1"] = self.E1
+    theta["E2"] = self.E2
+    theta["M1"] = self.M1
+    theta["M2"] = self.M2
+    theta["U1"] = self.U1
+    theta["V1"] = self.V1
+    theta["V2"] = self.V2
+    return theta
+
+
+
 class PTNCN:
     def __init__(self, name, x_dim, hid_dim, wght_sd=0.025, err_wght_sd=0.025,act_fun="tanh", init_type="normal",
                  out_fun="identity",in_dim=-1,zeta=1.0): # constructor
@@ -24,67 +166,16 @@ class PTNCN:
         self.standardize = False # un-tested
         self.use_temporal_error_rule = True # Note: works better w/o temporal error rule in discrete-valued input space
         self.zeta = zeta # leave zeta = 1
+        self.in_dim = x_dim
 
         self.balance = np.array([1.0, 0.0])
-
-        # variables that need to maintain state / long-running statistics over sequences
-        self.x_mu = None
-        self.zf0 = None
-        self.zf1 = None
-        self.zf2 = None
-        self.zf0_tm1 = None
-        self.zf1_tm1 = None
-        self.zf2_tm1 = None
-        self.z1 = None
-        self.z2 = None
-        self.y1 = None
-        self.y2 = None
-        self.ex = None
-        self.e1 = None
-        self.e1v = None
-        self.e2v = None
-        self.e1v_tm1 = None
-        self.e2v_tm1 = None
-        self.x = None
-        self.x_tm1 = None
-
-        if in_dim <= 0:
-            in_dim = x_dim
-        self.in_dim = in_dim
-
-        if self.zeta > 0.0:
-            # top-down control weights
-            self.U1 = tf.Variable( init_weights(self.init_type, [self.hid_dim, self.hid_dim], stddev=wght_sd, seed=seed) )
-        # bottom-up data-driving weights
-        self.M2 = tf.Variable( init_weights(self.init_type, [self.hid_dim, self.hid_dim], stddev=wght_sd, seed=seed) )
-        self.M1 = tf.Variable( init_weights(self.init_type, [in_dim, self.hid_dim], stddev=wght_sd, seed=seed) )
-
-        # top-down prediction weights
-        self.W2 = tf.Variable( init_weights(self.init_type, [self.hid_dim, self.hid_dim], stddev=wght_sd, seed=seed) )
-        self.W1 = tf.Variable( init_weights(self.init_type, [self.hid_dim, self.x_dim], stddev=wght_sd, seed=seed) )
-
-        # recurrent memory weights
-        self.V2 = tf.Variable( init_weights(self.init_type, [self.hid_dim, self.hid_dim], stddev=wght_sd, seed=seed) )
-        self.V1 = tf.Variable( init_weights(self.init_type, [self.hid_dim, self.hid_dim], stddev=wght_sd, seed=seed) )
-
-        # bottom-up error weights
-        self.E2 = tf.Variable( init_weights(self.init_type, [self.hid_dim, self.hid_dim], stddev=err_wght_sd, seed=seed) )
-        self.E1 = tf.Variable( init_weights(self.init_type, [self.x_dim, self.hid_dim], stddev=err_wght_sd, seed=seed) )
-
-        # set up parameter variables for the model
-        self.param_var = [] # book-keeping needed for using TF's weight update rules (or "optimizers")
-        self.param_var.append(self.W1)
-        self.param_var.append(self.E1)
-        self.param_var.append(self.W2)
-        self.param_var.append(self.E2)
-        if self.zeta > 0.0:
-            self.param_var.append(self.U1)
-        self.param_var.append(self.M1)
-        self.param_var.append(self.M2)
-        self.param_var.append(self.V1)
-        self.param_var.append(self.V2)
-
-        # initialize the activation function
+        self.state = STATE()
+        self.params = PARAMS(wght_sd=wght_sd, 
+                             err_wght_sd=err_wght_sd, 
+                             init_type=init_type, 
+                             hid_dim=hid_dim, 
+                             x_dim=x_dim)
+        
         self.act_fx = None
         if self.act_fun == "gelu":
             self.act_fx = gelu1
@@ -115,82 +206,23 @@ class PTNCN:
         self.balance[1] = c
         self.balance[0] = 1.0 - c
 
-    # def act_dx(self, h, z):
-    #     """
-    #         Hasty derivative function handler
-    #     """
-    #     if self.act_fun == "tanh": # d/dh = 1 - tanh^2(h)
-    #         return -(z * z) + 1.0
-    #     elif self.act_fun == "ltanh": # d/dh = 1 - tanh^2(h)
-    #         return d_ltanh(z)
-    #     elif self.act_fun == "relu6":
-    #         return d_relu6(h)
-    #     elif self.act_fun == "relu":
-    #         return d_relu(h)
-    #     else:
-    #         print("ERROR: deriv/dx fun not specified:{0}".format(self.act_fun ))
-    #         sys.exit(0)
-
-    def collect_params(self):
-        """
-            Routine for collecting all synaptic weight matrix/vectors from
-            transformer model in a named dictionary (for norm printing)
-        """
-        theta = dict()
-        theta["W1"] = self.W1
-        theta["W2"] = self.W2
-        theta["E1"] = self.E1
-        theta["E2"] = self.E2
-        theta["M1"] = self.M1
-        theta["M2"] = self.M2
-        if self.zeta > 0.0:
-            theta["U1"] = self.U1
-        theta["V1"] = self.V1
-        theta["V2"] = self.V2
-        return theta
-
-    def get_complexity(self):
-        """
-            Routine for measuring model complexity in terms of number of synaptic weight parameters
-        """
-        wght_cnt = 0
-        for i in range(len(self.param_var)):
-            wr = self.param_var[i].shape[0]
-            wc = self.param_var[i].shape[1]
-            wght_cnt += (wr * wc)
-        return wght_cnt
 
     def forward(self, x, K=5, beta=0.2, alpha=1, is_eval=True):
-        """
-            Forward inference step function for P-TNCN (note this maintains state)
-        """
-        y_logits = None
-        y_mu = None
-        x_logits = None
-        # self.x_mu = None
-        x_ = tf.cast(x, dtype=tf.float32)
 
-        if self.zf1 != None:
-            self.zf0_tm1 = self.zf0
-            if self.x_tm1 != None:
-                self.zf0_tm1 = self.x_tm1
-            self.zf1_tm1 = self.y1
-            self.zf2_tm1 = self.y2
-            self.e1v_tm1 = self.e1v
-            self.e2v_tm1 = self.e2v
-        else:
-            self.x_mu = tf.zeros([len(x), self.in_dim]) #x_ * 0
-            self.zf0_tm1 = tf.zeros([len(x), self.in_dim]) #x_ * 0
-            self.zf1_tm1 = tf.zeros([len(x), self.hid_dim])
-            self.zf2_tm1 = tf.zeros([len(x), self.hid_dim])
-            self.e1v_tm1 = tf.zeros([len(x), self.hid_dim])
-            self.e2v_tm1 = tf.zeros([len(x), self.hid_dim])
-            self.z1 = tf.zeros([len(x), self.hid_dim])
-            self.z2 = tf.zeros([len(x), self.hid_dim])
-            self.z3 = tf.zeros([len(x), self.hid_dim])
-            self.e1 = tf.zeros([len(x), self.hid_dim])
-            self.e2 = tf.zeros([len(x), self.hid_dim])
-            self.ex = self.zf0_tm1
+        x_ = tf.cast(x, dtype=tf.float32)
+        self.x_mu = tf.zeros([len(x), self.in_dim]) #x_ * 0
+        self.zf0_tm1 = tf.zeros([len(x), self.in_dim]) #x_ * 0
+        self.zf1_tm1 = tf.zeros([len(x), self.hid_dim])
+        self.zf2_tm1 = tf.zeros([len(x), self.hid_dim])
+        self.e1v_tm1 = tf.zeros([len(x), self.hid_dim])
+        self.e2v_tm1 = tf.zeros([len(x), self.hid_dim])
+        self.z1 = tf.zeros([len(x), self.hid_dim])
+        self.z2 = tf.zeros([len(x), self.hid_dim])
+        self.z3 = tf.zeros([len(x), self.hid_dim])
+        self.e1 = tf.zeros([len(x), self.hid_dim])
+        self.e2 = tf.zeros([len(x), self.hid_dim])
+        self.ex = self.zf0_tm1
+            
             
 
         # init states of variable at layer 0

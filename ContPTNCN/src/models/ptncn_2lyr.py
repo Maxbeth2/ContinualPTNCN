@@ -210,12 +210,22 @@ class PTNCN:
 
         # init states of variable at layer 0
         self.zf0 = x_ #tf.cast(tf.greater(x_, 0.0), dtype=tf.float32)
-
+        # print("x_: ")
+        # print(x_[0])
+        # print(x_[1])
+        # print(x_[2])
+        # exit()
         # compute new states
         if self.zeta > 0.0:
             self.z2 = tf.add(tf.matmul(self.zf1_tm1, self.M2), tf.matmul(self.zf2_tm1, self.V2))
         else:
             self.z2 = tf.matmul(self.zf2_tm1, self.V2)
+        # print("V2: ")
+        # print(self.V2.shape)
+        # print("")
+        # print("Z2:")
+        # print(self.z2.shape)
+        # exit()
         #self.z2 = tf.add(tf.matmul(self.zf1_tm1, self.M2), tf.matmul(self.zf2_tm1, self.V2))
         if self.standardize == True:
             self.z2 = standardize( self.z2 )
@@ -232,10 +242,8 @@ class PTNCN:
         x_logits = tf.matmul(self.zf1, self.W1)
         x_mu = self.out_fx( x_logits ) #tf.nn.sigmoid( x_logits )
 
-
-
-
-
+        # print(x_mu[0])
+        # exit()
         # compute local errors and state perturbations
         self.e1 = tf.subtract(z1_mu, self.zf1) * m
         self.ex = tf.subtract(x_mu, self.zf0) * m
@@ -293,7 +301,7 @@ class PTNCN:
         dW = tf.matmul(self.zf2, self.e1v, transpose_a=True)
         if update_radius > 0.0:
             dW = tf.clip_by_norm(dW, update_radius)
-        delta_list.append(dW )
+        delta_list.append(dW)
 
         # E2
         if self.use_temporal_error_rule == True:

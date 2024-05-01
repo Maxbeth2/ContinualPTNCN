@@ -12,6 +12,12 @@ np.random.seed(seed)
 
     @author: Ankur Mali
 '''
+
+# class STATE:
+#     def __init__(self):
+
+
+
 class PTNCN:
     def __init__(self, name, x_dim, hid_dim, wght_sd=0.025, err_wght_sd=0.025,act_fun="tanh", init_type="normal",
                  out_fun="identity",in_dim=-1,zeta=1.0): # constructor

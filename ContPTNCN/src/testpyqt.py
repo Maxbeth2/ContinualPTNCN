@@ -1,1 +1,0 @@
-from max_train_ptncn import *

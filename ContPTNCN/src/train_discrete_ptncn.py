@@ -32,12 +32,12 @@ np.random.seed(seed)
 ###########################################################################################################
 
 # small helper function for converting integer sequence to string-tokens
-def seq_to_tokens(idx_seq, vocab, mb_idx=0):
-    tok_seq = ""
-    for i in range(0, idx_seq.shape[0]):
-        idx = idx_seq[i][mb_idx].numpy()
-        tok_seq += vocab.idx2token(idx) + " "
-    return tok_seq
+# def seq_to_tokens(idx_seq, vocab, mb_idx=0):
+#     tok_seq = ""
+#     for i in range(0, idx_seq.shape[0]):
+#         idx = idx_seq[i][mb_idx].numpy()
+#         tok_seq += vocab.idx2token(idx) + " "
+#     return tok_seq
 
 # printing function for theta of an NCN model object
 def theta_norms_to_str(model, is_header=False):
@@ -52,32 +52,32 @@ def theta_norms_to_str(model, is_header=False):
     str = str[:-1]
     return str
 
-def create_fixed_point(data_set, n_rounds=1, n_seq_total=-1):
-    """
-        Creates a fixed-point sequence sample to be used to properly/stably track loss
-    """
-    samp_seq_list = []
-    n_seq = 0
-    if n_seq_total > 0:
-        flag = True
-        while flag:
-            for tr, ip, sg, mk, nxt_snt_flag in data_set:
-                samp_seq_list.append( (tr,ip,sg,mk) )
-                n_seq += 1
-                if n_seq >= n_seq_total:
-                    flag = False
-                    break
-    else:
-        debug_n_rounds = -1
-        for r in range(n_rounds):
-            n_seq = 0
-            for tr, ip, sg, mk, nxt_snt_flag in data_set:
-                if debug_n_rounds <= 0:
-                    samp_seq_list.append( (tr,ip,sg,mk) )
-                else:
-                    if r < debug_n_rounds:
-                        samp_seq_list.append( (tr,ip,sg,mk) )
-    return samp_seq_list
+# def create_fixed_point(data_set, n_rounds=1, n_seq_total=-1):
+#     """
+#         Creates a fixed-point sequence sample to be used to properly/stably track loss
+#     """
+#     samp_seq_list = []
+#     n_seq = 0
+#     if n_seq_total > 0:
+#         flag = True
+#         while flag:
+#             for tr, ip, sg, mk, nxt_snt_flag in data_set:
+#                 samp_seq_list.append( (tr,ip,sg,mk) )
+#                 n_seq += 1
+#                 if n_seq >= n_seq_total:
+#                     flag = False
+#                     break
+#     else:
+#         debug_n_rounds = -1
+#         for r in range(n_rounds):
+#             n_seq = 0
+#             for tr, ip, sg, mk, nxt_snt_flag in data_set:
+#                 if debug_n_rounds <= 0:
+#                     samp_seq_list.append( (tr,ip,sg,mk) )
+#                 else:
+#                     if r < debug_n_rounds:
+#                         samp_seq_list.append( (tr,ip,sg,mk) )
+#     return samp_seq_list
 
 def fast_log_loss(probs, y_ind):
     """
@@ -110,17 +110,8 @@ def eval_model(model, data_set, debug_step_print=False):
         mk = tf.cast(tf.greater_equal(x_seq, 0), dtype=tf.float32) # create mask to block off negative indices
         for t in range(x_seq.shape[1]): # step through sequence
             i_t = np.expand_dims(x_seq[:,t],axis=1) # get token indicies at time t
-            # print(i_t)
-            # print("--")
-            # a = input("Say something")
             m_t = tf.expand_dims(mk[:,t],axis=1)
-            # print(m_t)
-            # print("--")
-            # exit()
             x_t = tf.squeeze( tf.one_hot(i_t,depth=vocab.size) ) # convert to one-hot encoding for now...
-            for x in x_t:
-                print(x)
-            # exit()
             if i_t.shape[0] == 1:
                 x_t = tf.expand_dims(x_t, axis=0)
             x_logits, x_mu = model.forward(x_t, m_t, is_eval=True, beta=beta, alpha=alpha_e)
@@ -210,7 +201,7 @@ gamma = 1
 act_fun = "tanh"
 alpha_e = 0.001 # set according to IEEE paper
 
-load_model = False
+load_model = True
 model_fname = "model_best.pkl"
 eval_only = False
 

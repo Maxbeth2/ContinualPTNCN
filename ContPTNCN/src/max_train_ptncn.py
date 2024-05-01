@@ -83,7 +83,7 @@ print(" Model.Complexity = {0} synapses".format(model.get_complexity()))
 
 
 
-from plotting_process import PlottingProcess
+from ContPTNCN.src.processes.plotting_process import PlottingProcess
 from input_process import InputProcess
 
 import multiprocessing as mp

@@ -14,7 +14,7 @@ class ArduInOutProcess(mp.Process):
                 #  plt_feed_pipe : mpc.Connection, 
                 #  act_pipe : mpc.Connection, 
                 #  trigger_switch: mpc.Connection,
-                 OSC_PORT=57120):
+                 OSC_PORT=7771):
         mp.Process.__init__(self)
         self.OSC_PORT = OSC_PORT
         # self.act_pipe = act_pipe

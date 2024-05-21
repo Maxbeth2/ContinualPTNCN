@@ -5,6 +5,9 @@ from processes.sc_recieive_process import SCReceiveProcess
 from processes.vis_ui_process import UIProcess
 from pynput import keyboard
 
+from utils_u.seq_sampler_2d import DataLoader2D
+
+
 def get_ardu():
     import serial
     import serial.tools
@@ -58,8 +61,6 @@ listener.start()
 
 
 
-
-
 def empty_buffers():
     while beat_recv.poll():
         beat_recv.recv()
@@ -84,6 +85,19 @@ if __name__ == '__main__':
     
     Aseq = [r.randint(0,20) for i in range(8)]
     Bseq = [r.randint(0,20) for i in range(8)]
+    # sel_seq = 0
+    # file1 = open('max_improv_data.txt', 'r')
+    # Lines = file1.readlines()
+    # my_line = Lines[sel_seq].split(",")
+
+    # Aseq = []
+    # Bseq = []
+    # for ab in my_line:
+    #     a, b = ab.split(":")
+    #     Aseq.append(int(a))
+    #     Bseq.append(int(b))
+
+    # print(Aseq)
 
     i = 0
     x = 0

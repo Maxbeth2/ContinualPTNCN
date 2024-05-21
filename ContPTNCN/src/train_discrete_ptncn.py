@@ -15,7 +15,7 @@ import pickle
 import math
 
 sys.path.insert(0, 'models/')
-sys.path.insert(0, 'utils/')
+sys.path.insert(0, 'utils_u/')
 
 import tensorflow as tf
 import numpy as np
@@ -166,10 +166,14 @@ def eval_model_timed(model, train_data, dev_data, subtrain_data=None):
 # set simulation meta-parameters
 ###########################################################################################################
 
-train_fname = "../data/ptb_char/trainX.txt"
-subtrain_fname = "../data/ptb_char/subX.txt"
-dev_fname = "../data/ptb_char/validX.txt"
-vocab = "../data/ptb_char/vocab.txt"
+# train_fname = "../data/ptb_char/trainX.txt"
+train_fname = "../improv_data/max_improv_data.txt"
+# subtrain_fname = "../data/ptb_char/subX.txt"
+subtrain_fname = "../improv_data/max_improv_data.txt"
+# dev_fname = "../data/ptb_char/validX.txt"
+dev_fname = "../improv_data/max_improv_data.txt"
+# vocab = "../data/ptb_char/vocab.txt"
+# vocab = "../improv_data/max_improv_data.txt"
 out_dir = "../output/"#"/data_reitter/ago109/data/ptb_char/modelA/"
 calc_bpc = True
 use_low_dim_eval = False
